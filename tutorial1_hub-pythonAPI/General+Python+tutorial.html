@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8" />
-<title>General Python tutuorial</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
+<title>General Python tutorial</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
 
 <style type="text/css">
@@ -11726,7 +11726,9 @@ body {
 div#notebook {
   overflow: visible;
   border-top: none;
-}@media print {
+}
+
+@media print {
   div.cell {
     display: block;
     page-break-inside: avoid;
@@ -11747,7 +11749,7 @@ div#notebook {
 
 <!-- Loading mathjax macro -->
 <!-- Load mathjax -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
     <!-- MathJax configuration -->
     <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
@@ -11771,7 +11773,8 @@ div#notebook {
   <div tabindex="-1" id="notebook" class="border-box-sizing">
     <div class="container" id="notebook-container">
 
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11779,7 +11782,8 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11801,15 +11805,16 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Let's start from the bare basics..</p>
+<p>Let's start with the basics..</p>
 <ol>
-<li><p>For those new to Python, <a href="http://www.pythonforbeginners.com/basics/python-websites-tutorials">here</a> is a list of online resourses available to learn and familiarize yourself with Python.</p>
+<li><p>For those new to Python, <a href="http://www.pythonforbeginners.com/basics/python-websites-tutorials">here</a> is a list of online resources available to learn and familiarize yourself with Python.</p>
 </li>
-<li><p><a href="https://www.continuum.io/downloads">Anaconda</a>, an open source distribution of R and Python is used to install Python version 3.6. All the packages used in the next code cell (except geopandas) come along with the Anaconda installation of Python.</p>
+<li><p><a href="https://www.continuum.io/downloads">Anaconda</a>, an open source distribution of R and Python is used to install Python version 3.6. All the packages used in the code cell below (except geopandas) are included with the Anaconda installation of Python.</p>
 </li>
 <li><p>To install geopandas, execute the following command <em>after</em> Anaconda has been installed.</p>
 </li>
@@ -11819,11 +11824,12 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>We start by importing necessary packages</p>
+<p>First, we import the packages we'll be using</p>
 
 </div>
 </div>
@@ -11848,23 +11854,25 @@ div#notebook {
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>A simple breakdown of these packages..</p>
-<blockquote><p><a href="https://pypi.python.org/pypi/pandas/"><strong>Pandas</strong></a> : To load data as a table and enable working with tabular data.</p>
+<p>What are these packages?</p>
+<blockquote><p><a href="https://pypi.python.org/pypi/pandas/"><strong>Pandas</strong></a> : To load data into a table and enable working with it in tabular form.</p>
 <p><a href="https://pypi.python.org/pypi/geopandas/0.2.1"><strong>Geopandas</strong></a> : An extension of Pandas that supports working with geospatial data.</p>
 <p><a href="https://pypi.python.org/pypi/numpy/1.13.1"><strong>Numpy</strong></a> : Supports array processing for numbers, strings, records and objects</p>
 <p><a href="https://pypi.python.org/pypi/matplotlib/2.0.2"><strong>Matplotlib</strong></a> : Package for plotting and Python visualization</p>
 <p><a href="https://pypi.python.org/pypi/seaborn/0.8"><strong>Seaborn</strong></a> : Package for making attractive and informative statistical graphics in Python</p>
 </blockquote>
-<p>The last two lines of code in the cell above, adopt the color styles of seaborn and allow for displaying plots within this notebook, as opposed to displaying them in another browser window.</p>
+<p>The last two lines of code in the cell above adopt seaborn color styles and display plots within this notebook, as opposed to displaying them in a separate browser window.</p>
 
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11872,18 +11880,20 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>Look for the dataset in the search bar as shown on the <a href="http://hub.arcgis.com/pages/open-data">ArcGIS hub Open Data</a> page.</p>
-<p>The dataset used through this tutorial is the <a href="opendata.dc.gov/datasets/bicycle-lanes">DC Bicyclelanes</a> dataset.</p>
-<p>The Bicycle Lanes dataset for DC contains information such as length of the bike lane, year installed, additional notes, segment id for the street it falls on, etc for each bike lane. Additional information about each field in the dataset can be found <a href="http://www.arcgis.com/sharing/rest/content/items/294e062cdf2c48d5b9cbc374d9709bc0/info/metadata/metadata.xml?format=default&amp;output=html">here</a>.</p>
+<p>The dataset used through this tutorial is <a href="opendata.dc.gov/datasets/bicycle-lanes">DC Bicyclelanes</a>.</p>
+<p>The Bicycle Lanes dataset for Washington DC contains information about the length of bike lanes, year installed, additional notes, and segment ids for the streets that they fall on. Additional information about each field in the dataset can be found <a href="http://www.arcgis.com/sharing/rest/content/items/294e062cdf2c48d5b9cbc374d9709bc0/info/metadata/metadata.xml?format=default&amp;output=html">here</a>.</p>
 
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11892,16 +11902,18 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>When you click on the dataset in the search results, it takes you to the details of the dastaset. Click on the <strong>'API Explorer'</strong> tab as shown below.</p>
+<p>When you click on the dataset in the search results, it takes you to the details of the dataset. Click on the <strong>'API Explorer'</strong> tab as shown below.</p>
 
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11910,7 +11922,8 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11919,7 +11932,8 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11928,7 +11942,8 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11936,7 +11951,8 @@ div#notebook {
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -11968,9 +11984,7 @@ div#notebook {
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[2]:</div>
-
 
 
 
@@ -11984,17 +11998,19 @@ div#notebook {
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>To learn more about the package and its usage follow this <a href="https://developers.arcgis.com/python/guide/overview-of-the-arcgis-api-for-python/">link</a>.</p>
-<p>Experienced Python users could also read the <a href="http://esri.github.io/arcgis-python-api/apidoc/html/">API docs</a>.</p>
+<p>Experienced Python users can also skip straight to the <a href="http://esri.github.io/arcgis-python-api/apidoc/html/">API documentation</a>.</p>
 
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12021,9 +12037,7 @@ div#notebook {
 
 
 <div class="output_area">
-
 <div class="prompt"></div>
-
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>OBJECTID
@@ -12053,11 +12067,12 @@ YEAR_INSTALLED
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>We now retreive the entire dataset in <strong>all_features</strong> and get a count of all the rows in the dataset</p>
+<p>Next, we retrieve the entire dataset in <strong>all_features</strong> and get a count of all the bike lanes in the dataset</p>
 
 </div>
 </div>
@@ -12081,9 +12096,7 @@ YEAR_INSTALLED
 
 
 <div class="output_area">
-
 <div class="prompt"></div>
-
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>Total number of rows in the dataset: 
@@ -12096,7 +12109,8 @@ YEAR_INSTALLED
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12121,7 +12135,8 @@ YEAR_INSTALLED
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12151,22 +12166,20 @@ YEAR_INSTALLED
 
 
 <div class="output_area">
-
 <div class="prompt"></div>
 
 
 
 
-
  
  
-<div id="41647612-1c59-4502-a8ef-e6c85e12d3f3"></div>
+<div id="8668c4c6-dabf-4a3c-b02b-98a137dae583"></div>
 <div class="output_subarea output_widget_view ">
 <script type="text/javascript">
-var element = $('#41647612-1c59-4502-a8ef-e6c85e12d3f3');
+var element = $('#8668c4c6-dabf-4a3c-b02b-98a137dae583');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "13335812996847049282f1864de10471"}
+{"model_id": "ed0dbd0f60d04fa48069064d0576b78b"}
 </script>
 </div>
 
@@ -12176,7 +12189,8 @@ var element = $('#41647612-1c59-4502-a8ef-e6c85e12d3f3');
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12185,7 +12199,8 @@ var element = $('#41647612-1c59-4502-a8ef-e6c85e12d3f3');
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12193,7 +12208,8 @@ var element = $('#41647612-1c59-4502-a8ef-e6c85e12d3f3');
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12224,9 +12240,7 @@ var element = $('#41647612-1c59-4502-a8ef-e6c85e12d3f3');
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[7]:</div>
-
 
 
 <div class="output_html rendered_html output_subarea output_execute_result">
@@ -12391,11 +12405,12 @@ var element = $('#41647612-1c59-4502-a8ef-e6c85e12d3f3');
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Since this is a spatial dataset (contains geometry that can be plotted on a map), we will convert it to a geodataframe to view its details.</p>
+<p>Since this is a spatial dataset that contains geometry that can be plotted on a map, we will convert it to a geodataframe to view its details.</p>
 
 </div>
 </div>
@@ -12418,9 +12433,7 @@ var element = $('#41647612-1c59-4502-a8ef-e6c85e12d3f3');
 
 
 <div class="output_area">
-
 <div class="prompt"></div>
-
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>&lt;class &#39;geopandas.geodataframe.GeoDataFrame&#39;&gt;
@@ -12455,7 +12468,8 @@ memory usage: 203.4+ KB
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12463,7 +12477,8 @@ memory usage: 203.4+ KB
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12471,7 +12486,8 @@ memory usage: 203.4+ KB
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12497,9 +12513,7 @@ memory usage: 203.4+ KB
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[9]:</div>
-
 
 
 
@@ -12513,18 +12527,20 @@ memory usage: 203.4+ KB
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <h4 id="We-just-found-out-the-total-coverage-of-bike-lanes-in-DC,-which-is-approximately-96.48-decimal-miles.">We just found out the total coverage of bike lanes in DC, which is approximately 96.48 decimal miles.<a class="anchor-link" href="#We-just-found-out-the-total-coverage-of-bike-lanes-in-DC,-which-is-approximately-96.48-decimal-miles.">&#182;</a></h4><ul>
-<li>Similarly we could also use <strong><code>np.mean(array_name)</code></strong> and <strong><code>np.median(array_name)</code></strong> to compute those values.</li>
+<li>Similarly we can use <strong><code>np.mean(array_name)</code></strong> and <strong><code>np.median(array_name)</code></strong> to compute those values.</li>
 </ul>
 
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12551,9 +12567,7 @@ memory usage: 203.4+ KB
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[10]:</div>
-
 
 
 
@@ -12568,7 +12582,8 @@ memory usage: 203.4+ KB
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12607,9 +12622,7 @@ memory usage: 203.4+ KB
 
 
 <div class="output_area">
-
 <div class="prompt"></div>
-
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>Existing Bike Lane      908
@@ -12628,7 +12641,8 @@ Name: FACILITY, dtype: int64
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -12665,22 +12679,18 @@ Name: FACILITY, dtype: int64
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[13]:</div>
 
 
 
-
 <div class="output_text output_subarea output_execute_result">
-<pre>&lt;matplotlib.text.Text at 0x1ee38e699e8&gt;</pre>
+<pre>&lt;matplotlib.text.Text at 0x2519a77c6a0&gt;</pre>
 </div>
 
 </div>
 
 <div class="output_area">
-
 <div class="prompt"></div>
-
 
 
 
@@ -13038,7 +13048,8 @@ E/h/WhCGf7k5PLwAAAAASUVORK5CYII=
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13046,7 +13057,8 @@ E/h/WhCGf7k5PLwAAAAASUVORK5CYII=
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13076,9 +13088,7 @@ E/h/WhCGf7k5PLwAAAAASUVORK5CYII=
 
 
 <div class="output_area">
-
 <div class="prompt"></div>
-
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>Number of bike lanes installed in the last 5 years (2012-2016): 
@@ -13087,9 +13097,7 @@ E/h/WhCGf7k5PLwAAAAASUVORK5CYII=
 </div>
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[14]:</div>
-
 
 
 
@@ -13103,7 +13111,8 @@ E/h/WhCGf7k5PLwAAAAASUVORK5CYII=
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13126,7 +13135,8 @@ E/h/WhCGf7k5PLwAAAAASUVORK5CYII=
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13152,9 +13162,7 @@ E/h/WhCGf7k5PLwAAAAASUVORK5CYII=
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[16]:</div>
-
 
 
 
@@ -13173,7 +13181,8 @@ Name: YEAR_INSTALLED, dtype: int64</pre>
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13181,7 +13190,8 @@ Name: YEAR_INSTALLED, dtype: int64</pre>
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13207,9 +13217,7 @@ Name: YEAR_INSTALLED, dtype: int64</pre>
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[17]:</div>
-
 
 
 
@@ -13224,7 +13232,8 @@ Name: YEAR_INSTALLED, dtype: int64</pre>
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13251,9 +13260,7 @@ Name: YEAR_INSTALLED, dtype: int64</pre>
 
 
 <div class="output_area">
-
 <div class="prompt output_prompt">Out[18]:</div>
-
 
 
 
@@ -13291,7 +13298,8 @@ Name: YEAR_INSTALLED, dtype: int64</pre>
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13322,22 +13330,20 @@ Name: YEAR_INSTALLED, dtype: int64</pre>
 
 
 <div class="output_area">
-
 <div class="prompt"></div>
 
 
 
 
-
  
  
-<div id="31348830-77de-40b5-a01e-f834ec1876f5"></div>
+<div id="8361c2cb-6301-484f-9cc4-50219b016c8d"></div>
 <div class="output_subarea output_widget_view ">
 <script type="text/javascript">
-var element = $('#31348830-77de-40b5-a01e-f834ec1876f5');
+var element = $('#8361c2cb-6301-484f-9cc4-50219b016c8d');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "cfe841c1aca4480eb0c07847ffcc29bb"}
+{"model_id": "70f26430e5a141f7822f624ec467bdd1"}
 </script>
 </div>
 
@@ -13347,7 +13353,8 @@ var element = $('#31348830-77de-40b5-a01e-f834ec1876f5');
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13356,7 +13363,8 @@ var element = $('#31348830-77de-40b5-a01e-f834ec1876f5');
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13365,7 +13373,8 @@ var element = $('#31348830-77de-40b5-a01e-f834ec1876f5');
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -13383,7 +13392,8 @@ var element = $('#31348830-77de-40b5-a01e-f834ec1876f5');
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
