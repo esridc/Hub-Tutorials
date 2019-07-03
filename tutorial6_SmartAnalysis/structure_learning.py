@@ -6,17 +6,25 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from scipy.sparse.csgraph import minimum_spanning_tree
-from scipy import stats
+from scipy.stats import stats 
 
 import numpy as np
+import scipy as sp
 import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
+import pdb
+
+# Import AcrGIS python API
+from arcgis import GIS
+from arcgis.features import SpatialDataFrame, GeoAccessor
+from arcgis.features.analysis import join_features
 
 class StructureLearning():
     """ Object which performs structure learning on a pandas dataframe object,
         derived from ArcGIS data features. """
-    def __init__(self, df, analysis_columns, per_capita_columns, population_column,
+    def __init__(self, df, analysis_columns=None, per_capita_columns=None, 
+        population_column=None, categorical_columns=None, 
         correlation_measure='mutual_information', BINS=20, inplace=False):
         """ Initialize StructureLearning object.
         Keyword arguments:
@@ -37,15 +45,24 @@ class StructureLearning():
             # TODO: maybe don't need to copy whole dataframe, since we only
             # use the analysis columns
 
-        self.analysis_labels = analysis_columns
-        self.analysis_columns = [x + '_analysis' for x in self.analysis_labels]
+        if analysis_columns is None:
+            self.analysis_columns = df.columns
+        else: 
+            self.analysis_columns = analysis_columns
+
+        if per_capita_columns is not None and population_column is None:
+            raise ValueError('If <per_capita_columns> is specified, <population_column> must also be specified.')
+
         self.per_capita_columns = per_capita_columns
         self.population_column = population_column
+        self.categorical_columns = categorical_columns
         self.BINS = BINS
 
         metric_options = ['mutual_information',
                           'spearman_rank', 
-                          'pearson_rank']
+                          'pearson_rho',
+                          'gaussian_correlation',
+                          'fft_distance_correlation']
         if correlation_measure not in metric_options:
             raise ValueError('Correlation measure must be in:', metric_options)
         self.metric = correlation_measure
@@ -62,67 +79,191 @@ class StructureLearning():
     def prepare_data(self):
         '''' Discretize data and normalize the data in per captia columns. '''
         print("Preparing data columns:")
-        for column in self.analysis_labels:
+
+        # self.df = self.df[self.df[self.population_column] != 0]
+
+        # Remove features where the population equals zero
+        self.df.drop(self.df[self.df[self.population_column] == 0.0].index, inplace=True)
+
+        if self.categorical_columns is None:
+            cols = self.analysis_columns
+            num_cols = self.df._get_numeric_data().columns
+            self.categorical_columns = list(set(cols) - set(num_cols)) 
+
+        print("Treating the following columns as categorical data:", self.categorical_columns)
+
+        # print(self.df[self.population_column])
+        for column in self.analysis_columns:
+            print(column)
+            # Cannot normalize or discretize categorical data, so continue
+
+            if column in self.categorical_columns:
+                self.df[column + '_analysis'] = self.df[column] 
+                continue
             # If the column should be measured in units/population, divide by population column
-            if column in self.per_capita_columns:
+            if self.per_capita_columns is not None and column in self.per_capita_columns:
                 self.df[column + '_analysis'] = self.df[column] * \
                     1.0 / self.df[self.population_column] * 1.0
             else:
                 self.df[column + '_analysis'] = self.df[column] * 1.0
 
-            # MI computation requres discrete/categorical data, so bin the columns into BIN evenely spaced bins
-            if self.metric == "mutual_information":
-                self.df[column + '_analysis'] = pd.cut(self.df[column + '_analysis'], bins=self.BINS, labels=range(
+            # Mutual information requres discrete/categorical data, so bin the columns into BIN evenely spaced bins
+            # if self.metric == "mutual_information":
+            #     self.df[column + '_analysis'] = pd.cut(self.df[column + '_analysis'], bins=self.BINS, labels=range(
+            #         self.BINS), precision=8, duplicates='raise')
+            if len(self.categorical_columns) > 0:
+                self.df[column + '_analysis_bin'] = pd.cut(self.df[column + '_analysis'], bins=self.BINS, labels=range(
                     self.BINS), precision=8, duplicates='raise')
-            print(column)
 
     def pairwise_mutual_information(self, x_label, y_label):
         ''' Compute the mutual information between two columns in the data frame, specified by x_label and y_label.
         Keyword arguments:
         x_label: string containing the name of the first column
         y_label: string containing the name of the second column
-        COMPUTE_ENTROPY: flag specifying whether to optionally compute entropy of each variable and return (default: False).
         '''
-        # Initialize mutual information and entropy labels
-        mutual_information = 0.0
 
-        # Get unique elements for x and y variables
-        x_bins = self.df[x_label].unique()
-        y_bins = self.df[y_label].unique()
+        if any(x in x_label for x in self.categorical_columns) or any(y in y_label for y in self.categorical_columns):
+            # If either attribute is a categorical variable, compute discrete entropy on binned data
+            mutual_information = 0.0
 
-        # Get the empirical counts for each value of x and y variable
-        x_terms = self.df[x_label].value_counts() / self.df.shape[0]
-        y_terms = self.df[y_label].value_counts() / self.df.shape[0]
+            # Get unique elements for x and y variables
+            try: 
+                x_bins = self.df[x_label].unique()
+                y_bins = self.df[y_label].unique()
 
-        # Get the empirical pairwise counts for the combination of x and y values
-        cross_terms = self.df.groupby(
-            [x_label, y_label]).size() / (self.df.shape[0])
+                # Get the empirical counts for each value of x and y variable
+                x_terms = self.df[x_label].value_counts() / self.df.shape[0]
+                y_terms = self.df[y_label].value_counts() / self.df.shape[0]
 
-        # Compute the MI between x and y values, MI(X; Y) = H(X) - H(X | Y) = H(Y) - H(Y | X)
-        for x in x_bins:
+                # Get the empirical pairwise counts for the combination of x and y values
+                cross_terms = self.df[[x_label, y_label]].groupby(
+                    [x_label, y_label]).size() / (self.df.shape[0])
+
+            # If unique fails, can cast as a string and run unique grouping again
+            except (TypeError, AttributeError) as e: 
+                try:
+                    x_bins = self.df[x_label].astype(str).unique()
+                    y_bins = self.df[y_label].astype(str).unique()
+
+                    # Get the empirical counts for each value of x and y variable
+                    x_terms = self.df[x_label].astype(str).value_counts() / self.df.shape[0]
+                    y_terms = self.df[y_label].astype(str).value_counts() / self.df.shape[0]
+
+                    # Get the empirical pairwise counts for the combination of x and y values
+                    cross_terms = self.df[[x_label, y_label]].astype(str).groupby(
+                        [x_label, y_label]).size() / (self.df.shape[0])
+
+                except (TypeError, AttributeError) as e: 
+                    print("Cannot extract unique values from this dataype for comparision of:", x_label, "and", y_label)
+                    print(e)
+
+
+            # Compute the MI between x and y values, MI(X; Y) = H(X) - H(X | Y) = H(Y) - H(Y | X)
+            for x in x_bins:
+                for y in y_bins:
+                    if (x, y) in cross_terms:
+                        mutual_information += cross_terms[x, y] * np.log2(
+                            cross_terms[x, y] * 1.0 / (x_terms[x] * y_terms[y] * 1.0))
+
+            # Compute the entropy of attribute x
+            h_x = 0.0
+            for x in x_bins:
+                if not np.isclose(x_terms[x], 0.0):
+                    h_x += -x_terms[x] * np.log2(x_terms[x])
+
+            # Compute the entropy of attribute y
+            h_y = 0.0
             for y in y_bins:
-                if (x, y) in cross_terms:
-                    mutual_information += cross_terms[x, y] * np.log2(
-                        cross_terms[x, y] * 1.0 / (x_terms[x] * y_terms[y] * 1.0))
+                if not np.isclose(x_terms[x], 0.0):
+                    h_y += -y_terms[y] * np.log2(y_terms[y])
 
-        return mutual_information
+            # Compute normalized mutual information by dividing by h_x + h_y
+            return 2.0*mutual_information / (h_x + h_y)
+        else:
+            # Fit a multivaraite Gaussian distirbution to the data and compute mutual information 
+            mu_hat = np.array([self.df[x_label].mean(), self.df[y_label].mean()]).reshape(1, 2)
+            centered_data = self.df[[x_label, y_label]] - mu_hat
+            sigma_hat = 1.0 / centered_data.shape[0] * centered_data.T.dot(centered_data)
+
+            h_x = np.log(sigma_hat[x_label][x_label] * np.sqrt(2 * np.pi * np.e))
+            h_y = np.log(sigma_hat[y_label][y_label] * np.sqrt(2 * np.pi * np.e))
+
+            rho = sigma_hat[x_label][y_label] / (np.sqrt(sigma_hat[x_label][x_label]) * np.sqrt(sigma_hat[y_label][y_label]))
+            mutual_information = -0.5 * np.log(1 - rho**2)
+
+            # rho = sigma_hat[x_label][y_label] / (np.sqrt(sigma_hat[x_label][x_label]) * np.sqrt(sigma_hat[y_label][y_label]))
+            # mutual_information = 0.5*np.log(sigma_hat[x_label][x_label] * sigma_hat[y_label][y_label] / np.linalg.det(sigma_hat))
+            return mutual_information
+        # print(h_x, h_y, mutual_information)
+
+    def pairwise_gaussian_correlation(self, x_label, y_label):
+        mu_hat = np.array([self.df[x_label].mean(), self.df[y_label].mean()]).reshape(1, 2)
+        centered_data = self.df[[x_label, y_label]] - mu_hat
+        sigma_hat = 1.0 / centered_data.shape[0] * centered_data.T.dot(centered_data)
+
+        h_x = np.log(sigma_hat[x_label][x_label] * np.sqrt(2 * np.pi * np.e))
+        h_y = np.log(sigma_hat[y_label][y_label] * np.sqrt(2 * np.pi * np.e))
+
+        rho = sigma_hat[x_label][y_label] / (np.sqrt(sigma_hat[x_label][x_label]) * np.sqrt(sigma_hat[y_label][y_label]))
+
+        return rho 
 
     def pairwise_spearman_rank_order(self, x_label, y_label):
         ''' Compute the Spearman rank-order correlation coefficient to detect monotonic relationships between variables. '''
-        rho, p_value = stats.stats.spearmanr(
+        rho, p_value = sp.stats.stats.spearmanr(
             self.df[x_label], self.df[y_label])
         return rho  # TODO: what is the best way to incorporate/return. the p-value
 
-    def pairwise_pearsons_rank_order(self, x_label, y_label):
+    def pairwise_pearsons_rho(self, x_label, y_label):
         ''' Compute the Pearson correlation for linear relationship between variables. '''
-        rho, p_value = stats.stats.pearsonr(self.df[x_label], self.df[y_label])
+        rho, p_value = sp.stats.stats.pearsonr(self.df[x_label], self.df[y_label])
         return rho
 
-    def build_pairwise_weight_matrix(self, override=False):
-        ''' Build a matrix containing the pairwise mutual information between each variable in self.analysis_columns. '''
-        if self._weight_matrix is not None and override == False:
-            return
+    def fft_distance_correlation(self, x_label, y_label, FILTER=False):
+        ''' Compute the Pearson correlation for linear relationship between variables using the FFT method. '''
+        x_hat = (self.df[[x_label, y_label]] - np.mean(self.df[[x_label, y_label]], axis=0)) \
+                / np.std(self.df[[x_label, y_label]], axis=0) 
 
+        Fs = 1.0 # sampling rate
+        N = x_hat.shape[0] # data length
+        # N_fft = (2**int(np.ceil(np.log2(N))))
+        N_fft = N
+
+        # X_hat = 1.0 / N_fft * x_hat.apply(np.fft.fft, n=N_fft, axis=0, norm=None)
+        X_hat = x_hat.apply(np.fft.fft, n=N_fft, axis=0, norm='ortho')
+
+        # Remove low magnitude components
+        if FILTER:
+            eps = np.max(np.abs(X_hat), axis=0) / 100
+            X_hat[np.any(X_hat < eps, axis=1)] = 0.0
+
+        # Compute the frequency bins
+        bins = np.arange(N_fft) * Fs / N_fft # frequency bins
+      
+        # Use only CUTOFF number of Fourier coefficients 
+        CUTOFF = 75
+        nyquist_num = min(N_fft // 2 + 1, CUTOFF)
+        X_hat = X_hat[0:nyquist_num]
+        bins = bins[0:nyquist_num]
+
+        # Compute the magnitude and phase of the complex signal
+        mag = X_hat.abs()
+        phase = np.arctan2(np.imag(X_hat), np.real(X_hat)) / np.pi * 180.0
+
+        # Compute the appropriate normalization for the FFT for correlation
+        # X_hat = np.sqrt(N_fft) * X_hat
+        dist_freq = sp.spatial.distance.euclidean(X_hat[x_label], X_hat[y_label])
+        rho_freq = 1 - (dist_freq**2 / (2 * X_hat.shape[0]))
+
+        COMPARE = True 
+        if COMPARE:
+            rho, p_value = stats.pearsonr(self.df[x_label], self.df[y_label])
+            print("Diffence between approx and real:", rho - rho_freq)
+
+        return rho_freq
+
+    def build_pairwise_weight_matrix(self):
+        ''' Build a matrix containing the pairwise mutual information between each variable in self.analysis_columns. '''
         self._weight_matrix = np.zeros(
             (len(self.analysis_columns), len(self.analysis_columns)))
 
@@ -130,19 +271,37 @@ class StructureLearning():
             for j, y_label in enumerate(self.analysis_columns):
                 # Only compute for the upper triangle of the matrix
                 if i < j:
+                    # print("Analyszing:", x_label, "and", y_label)
                     if self.metric == 'mutual_information':
                         weight = self.pairwise_mutual_information(
-                            x_label, y_label)
+                            x_label + '_analysis', y_label + '_analysis')
+                    elif x_label in self.categorical_columns and y_label in self.categorical_columns:
+                        weight = self.pairwise_mutual_information(
+                            x_label + '_analysis', y_label + '_analysis')
+                    elif x_label in self.categorical_columns and y_label not in self.categorical_columns:
+                        weight = self.pairwise_mutual_information(
+                            x_label + '_analysis', y_label + '_analysis_bin')
+                    elif x_label not in self.categorical_columns and y_label in self.categorical_columns:
+                        weight = self.pairwise_mutual_information(
+                            x_label + '_analysis_bin', y_label + '_analysis')
                     elif self.metric == 'spearman_rank':
                         weight = self.pairwise_spearman_rank_order(
-                            x_label, y_label)
-                    elif self.metric == 'pearson_rank':
-                        weight = self.pairwise_pearsons_rank_order(
-                            x_label, y_label)
+                            x_label + '_analysis', y_label + '_analysis')
+                    elif self.metric == 'pearson_rho':
+                        weight = self.pairwise_pearsons_rho(
+                            x_label + '_analysis', y_label + '_analysis')
+                    elif self.metric == 'fft_distance_correlation':
+                        weight = self.fft_distance_correlation(
+                            x_label + '_analysis', y_label + '_analysis', FILTER=False)
+                    elif self.metric == 'gaussian_correlation':
+                        weight = self.pairwise_gaussian_correlation(
+                            x_label + '_analysis', y_label + '_analysis')
                     else:
                         weight = self.pairwise_mutual_information(
-                            x_label, y_label)
+                            x_label + '_analysis', y_label + '_analysis')
                     self._weight_matrix[i, j] = weight
+
+        # print(self._weight_matrix)
 
     def build_maximum_spanning_tree(self):
         '''Execute the Chow Liu Tree algorithm, i.e., use the pairwise MI matrix and compute a maximum spanning tree. '''
@@ -151,17 +310,15 @@ class StructureLearning():
             # Mult by -1.0 to get the maximum spanning tree
             maximum_spanning_graph = -1.0 * \
                 minimum_spanning_tree(-1.0 * self.weight_matrix).toarray()
-        elif self.metric == "spearman_rank":
-            # Mult by -1.0 to get the maximum spanning tree and take abs for pos/neg correlation
-            maximum_spanning_graph = -1.0 * \
-                minimum_spanning_tree(-1.0 * np.abs(self.weight_matrix)).toarray()
-        elif self.metric == "spearman_rank":
-            # Mult by -1.0 to get the maximum spanning tree and take abs for pos/neg correlation
-            maximum_spanning_graph = -1.0 * \
-                minimum_spanning_tree(-1.0 * np.abs(self.weight_matrix)).toarray()
+        # elif self.metric == "pearson_rho" or self.metric == "spearman_rank" or self.metric == "gaussian_correlation":
+        #     # Mult by -1.0 to get the maximum spanning tree and take abs for pos/neg correlation
+        #     maximum_spanning_graph = -1.0 * \
+        #         minimum_spanning_tree(-1.0 * np.abs(self.weight_matrix)).toarray()
         else:
             maximum_spanning_graph = -1.0 * \
-                minimum_spanning_tree(-1.0 * self.weight_matrix).toarray()
+                minimum_spanning_tree(-1.0 * np.abs(self.weight_matrix)).toarray()
+            # maximum_spanning_graph = -1.0 * \
+            #     minimum_spanning_tree(-1.0 * self.weight_matrix).toarray()
 
         self._maximum_spanning_graph = copy.copy(self.weight_matrix)
         self._maximum_spanning_graph[maximum_spanning_graph == 0.0] = 0.0
@@ -187,9 +344,6 @@ class StructureLearning():
             # Choose a diverging colormap and flip weight orientation so negative is red
             midpoint = 1.0 - (np.max(self.weight_matrix) / (np.max(self.weight_matrix) + np.abs(np.min(self.weight_matrix))))
             cm = self.shiftedColorMap(plt.cm.coolwarm_r, midpoint=midpoint)  
-            # cm = plt.cm.coolwarm
-            # edge_matrix_hold = copy.copy(edge_matrix)
-            # edge_matrix[edge_matrix_hold == 0.0] = 0.0
 
         # g = nx.from_numpy_matrix(edge_matrix, edge_attribute='weight')
         g = nx.from_numpy_matrix(edge_matrix)
@@ -227,7 +381,7 @@ class StructureLearning():
                          vmax=np.max(self.weight_matrix),
                          node_size=1000,
                          labels=dict(
-                             zip(range(len(self.analysis_labels)), self.analysis_labels)),
+                             zip(range(len(self.analysis_columns)), self.analysis_columns)),
                          font_size=20,
                          font_color='r')
 
@@ -235,6 +389,8 @@ class StructureLearning():
 
     def visualize_full_graph(self, layout='circular'):
         ''' Visualize the full weighted pairwise MI graph. '''
+
+        # print(self.weight_matrix)
         self.visualize_graph(self.weight_matrix, layout)
 
     def visualize_relevence_graph(self, layout='circular', threshhold=None):
@@ -266,9 +422,9 @@ class StructureLearning():
                 'Specified shape must have the same number of plots as top_n.')
 
         if use_analysis_vars:
-            column_list = self.analysis_columns
+            column_list = [x + '_analysis' for x in self.analysis_columns]
         else:
-            column_list = self.analysis_labels
+            column_list = self.analysis_columns
 
         if top_n is None:
             top_n = len(self.analysis_columns)
@@ -299,7 +455,7 @@ class StructureLearning():
 
             count = 0
             ind = 0
-            while count < top_n:
+            while count < top_n :
                 i = math.floor(sort_index[ind] / len(self.analysis_columns))
                 j = sort_index[ind] % len(self.analysis_columns)
 
@@ -314,12 +470,12 @@ class StructureLearning():
                 if shape is None or shape[0] == 1 or shape[1] == 1:
                     ax[count].scatter(self.df[x_label], self.df[y_label], s=10)
                     ax[count].set_title(
-                        self.analysis_labels[i] + ' vs ' + self.analysis_labels[j])
+                        self.analysis_columns[i] + ' vs ' + self.analysis_columns[j])
                 else:
                     ax[math.floor(count / shape[1]), count % shape[1]
                         ].scatter(self.df[x_label], self.df[y_label], s=10)
                     ax[math.floor(count / shape[1]), count % shape[1]
-                        ].set_title(self.analysis_labels[i] + ' vs ' + self.analysis_labels[j])
+                        ].set_title(self.analysis_columns[i] + ' vs ' + self.analysis_columns[j])
                 # Increment plot count and index
                 count += 1
                 ind += 1
@@ -374,6 +530,8 @@ class StructureLearning():
           stop : Offset from highest point in the colormap's range.
               Defaults to 1.0 (no upper offset). Should be between
               `midpoint` and 1.0.
+
+        From: phobson
         '''
         cdict = {
             'red': [],
