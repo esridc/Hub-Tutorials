@@ -1,12 +1,16 @@
 import copy
 import math
+import time
 import pandas as pd
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+import warnings
 
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.stats import stats 
+import scipy as sp
+from sklearn.neighbors import NearestNeighbors
 
 import numpy as np
 import scipy as sp
@@ -15,21 +19,33 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 import pdb
 
+# Networking imports
+import boto3
+import requests
+import json
+import ndjson
+import sys
+
 # Import AcrGIS python API
 from arcgis import GIS
 from arcgis.features import SpatialDataFrame, GeoAccessor
 from arcgis.features.analysis import join_features
+
+# TODO: need to port to python
+from IPython.display import clear_output
+
 
 class StructureLearning():
     """ Object which performs structure learning on a pandas dataframe object,
         derived from ArcGIS data features. """
     def __init__(self, df, analysis_columns=None, per_capita_columns=None, 
         population_column=None, categorical_columns=None, 
-        correlation_measure='mutual_information', BINS=20, inplace=False):
+        correlation_measure='mutual_information', BINS=20, inplace=False,
+        ignore_perfect=True):
         """ Initialize StructureLearning object.
         Keyword arguments:
         df -- pandas data frame containing each of the analysis_columns as a column
-        analysis_columns -- columns in the df to analyze
+        analysis_columns -- columns in the df to analyze:q
         per_captia_columns -- columns which should be treated as per captia values
                 and divdied by population column
         population_column -- column containing population for each row/attribute
@@ -56,6 +72,10 @@ class StructureLearning():
         self.per_capita_columns = per_capita_columns
         self.population_column = population_column
         self.categorical_columns = categorical_columns
+
+        self.ignore_perfect = ignore_perfect
+        self.PERF_CORR = 1.0
+        self.DEFAULT_CORR = 0.0
         self.BINS = BINS
 
         metric_options = ['mutual_information',
@@ -73,17 +93,36 @@ class StructureLearning():
         self._relevence_graph = None
         self.relevence_thresh = None
 
+        self.cm = None
+
         # Normalize and discretize data
         self.prepare_data()
+        print("Final dataset shape:", self.df.shape)
 
     def prepare_data(self):
         '''' Discretize data and normalize the data in per captia columns. '''
         print("Preparing data columns:")
 
         # self.df = self.df[self.df[self.population_column] != 0]
+        # pdb.set_trace()
+        # Drop columns with more then thresh NaN values
+        self.df.dropna(axis=1, thresh=0.80*self.df.shape[0], inplace=True)
+
+        removed_columns = set(self.analysis_columns).difference(self.df.columns)
+        if len(removed_columns) > 0:
+            print("Omitting analysis columns with too many NaN values:", removed_columns)
+            self.analysis_columns = list(set(self.analysis_columns) & set(self.df.columns)) 
+
+        # Drop remaining rows with NaN values
+        self.df.dropna(axis=0, how='any', subset=self.analysis_columns, inplace=True)
+
+        # Take only the first 10000 entries 
+        if self.df.shape[0] > 1000:
+            self.df = self.df.head(1000)
 
         # Remove features where the population equals zero
-        self.df.drop(self.df[self.df[self.population_column] == 0.0].index, inplace=True)
+        if self.population_column is not None:
+                self.df.drop(self.df[self.df[self.population_column] == 0.0].index, inplace=True)
 
         if self.categorical_columns is None:
             cols = self.analysis_columns
@@ -91,10 +130,11 @@ class StructureLearning():
             self.categorical_columns = list(set(cols) - set(num_cols)) 
 
         print("Treating the following columns as categorical data:", self.categorical_columns)
+        print("Treating the following columns as numerical data:", set(self.analysis_columns).difference(self.categorical_columns))
 
         # print(self.df[self.population_column])
-        for column in self.analysis_columns:
-            print(column)
+        for i, column in enumerate(self.analysis_columns):
+            self.update_progress(i / len(self.analysis_columns))
             # Cannot normalize or discretize categorical data, so continue
 
             if column in self.categorical_columns:
@@ -111,6 +151,7 @@ class StructureLearning():
             # if self.metric == "mutual_information":
             #     self.df[column + '_analysis'] = pd.cut(self.df[column + '_analysis'], bins=self.BINS, labels=range(
             #         self.BINS), precision=8, duplicates='raise')
+            # print(self.df[column])
             if len(self.categorical_columns) > 0:
                 self.df[column + '_analysis_bin'] = pd.cut(self.df[column + '_analysis'], bins=self.BINS, labels=range(
                     self.BINS), precision=8, duplicates='raise')
@@ -124,6 +165,9 @@ class StructureLearning():
 
         if any(x in x_label for x in self.categorical_columns) or any(y in y_label for y in self.categorical_columns):
             # If either attribute is a categorical variable, compute discrete entropy on binned data
+            # print(self.df[x_label])
+            # print(self.df[y_label])
+            # print(x_label, y_label)
             mutual_information = 0.0
 
             # Get unique elements for x and y variables
@@ -157,6 +201,7 @@ class StructureLearning():
                     print("Cannot extract unique values from this dataype for comparision of:", x_label, "and", y_label)
                     print(e)
 
+            # print(x_terms, y_terms) 
 
             # Compute the MI between x and y values, MI(X; Y) = H(X) - H(X | Y) = H(Y) - H(Y | X)
             for x in x_bins:
@@ -174,32 +219,52 @@ class StructureLearning():
             # Compute the entropy of attribute y
             h_y = 0.0
             for y in y_bins:
-                if not np.isclose(x_terms[x], 0.0):
+                if not np.isclose(y_terms[y], 0.0):
                     h_y += -y_terms[y] * np.log2(y_terms[y])
 
+            # define 0 / (0 + 0) to be zero, i.e. when h_x or h_y is zero 
+            if h_x == 0.0 or h_y == 0.0:
+                return 0.0
+
             # Compute normalized mutual information by dividing by h_x + h_y
-            return 2.0*mutual_information / (h_x + h_y)
+            return 2.0*mutual_information / (h_x + h_y) # TODO: figure out best normalization strategy
+            # return mutual_information 
         else:
             # Fit a multivaraite Gaussian distirbution to the data and compute mutual information 
+            # print("computing continuous mi for:", x_label, y_label)
             mu_hat = np.array([self.df[x_label].mean(), self.df[y_label].mean()]).reshape(1, 2)
+            # print("mu hat:", mu_hat)
             centered_data = self.df[[x_label, y_label]] - mu_hat
             sigma_hat = 1.0 / centered_data.shape[0] * centered_data.T.dot(centered_data)
 
+            # Zero variance causes Gaussian approximation to fail. Pad with some small tolerence for constant signals
+            if (sigma_hat == 0.0).any(axis=None):
+                sigma_hat[sigma_hat == 0.0] = 1e-5
+
+            # print("sigma_hat: \n", sigma_hat)
+
             h_x = np.log(sigma_hat[x_label][x_label] * np.sqrt(2 * np.pi * np.e))
             h_y = np.log(sigma_hat[y_label][y_label] * np.sqrt(2 * np.pi * np.e))
+            # print("h_x, h_y:", h_x, h_y)
 
             rho = sigma_hat[x_label][y_label] / (np.sqrt(sigma_hat[x_label][x_label]) * np.sqrt(sigma_hat[y_label][y_label]))
+            # print("rho:", rho)
             mutual_information = -0.5 * np.log(1 - rho**2)
 
             # rho = sigma_hat[x_label][y_label] / (np.sqrt(sigma_hat[x_label][x_label]) * np.sqrt(sigma_hat[y_label][y_label]))
             # mutual_information = 0.5*np.log(sigma_hat[x_label][x_label] * sigma_hat[y_label][y_label] / np.linalg.det(sigma_hat))
-            return mutual_information
+            # return mutual_information
+            return 2.0*mutual_information / (h_x + h_y) # TODO: figure out best normalization strategy
         # print(h_x, h_y, mutual_information)
 
     def pairwise_gaussian_correlation(self, x_label, y_label):
         mu_hat = np.array([self.df[x_label].mean(), self.df[y_label].mean()]).reshape(1, 2)
         centered_data = self.df[[x_label, y_label]] - mu_hat
         sigma_hat = 1.0 / centered_data.shape[0] * centered_data.T.dot(centered_data)
+
+        # Zero variance causes Gaussian approximation to fail. Pad with some small tolerence for constant signals
+        if (sigma_hat == 0.0).any(axis=None):
+            sigma_hat[sigma_hat == 0.0] = 1e-5
 
         h_x = np.log(sigma_hat[x_label][x_label] * np.sqrt(2 * np.pi * np.e))
         h_y = np.log(sigma_hat[y_label][y_label] * np.sqrt(2 * np.pi * np.e))
@@ -212,15 +277,26 @@ class StructureLearning():
         ''' Compute the Spearman rank-order correlation coefficient to detect monotonic relationships between variables. '''
         rho, p_value = sp.stats.stats.spearmanr(
             self.df[x_label], self.df[y_label])
+
+        # For e.g., constant function, the variance is zero and correlation is undefined. Replace nan with zero
+        if np.isnan(rho):
+            rho = 0.0
         return rho  # TODO: what is the best way to incorporate/return. the p-value
 
     def pairwise_pearsons_rho(self, x_label, y_label):
         ''' Compute the Pearson correlation for linear relationship between variables. '''
         rho, p_value = sp.stats.stats.pearsonr(self.df[x_label], self.df[y_label])
+        if np.isnan(rho):
+            rho = 0.0
         return rho
 
     def fft_distance_correlation(self, x_label, y_label, FILTER=False):
         ''' Compute the Pearson correlation for linear relationship between variables using the FFT method. '''
+
+        # If the data is constant, np.std will return NaN
+        if (np.std(self.df[[x_label, y_label]], axis=0) == 0.0).any():
+            return self.DEFAULT_CORR
+
         x_hat = (self.df[[x_label, y_label]] - np.mean(self.df[[x_label, y_label]], axis=0)) \
                 / np.std(self.df[[x_label, y_label]], axis=0) 
 
@@ -252,7 +328,10 @@ class StructureLearning():
 
         # Compute the appropriate normalization for the FFT for correlation
         # X_hat = np.sqrt(N_fft) * X_hat
-        dist_freq = sp.spatial.distance.euclidean(X_hat[x_label], X_hat[y_label])
+        try:
+            dist_freq = sp.spatial.distance.euclidean(X_hat[x_label], X_hat[y_label])
+        except:
+            pdb.set_trace()
         rho_freq = 1 - (dist_freq**2 / (2 * X_hat.shape[0]))
 
         COMPARE = True 
@@ -267,10 +346,14 @@ class StructureLearning():
         self._weight_matrix = np.zeros(
             (len(self.analysis_columns), len(self.analysis_columns)))
 
+        complete = 0
+        total = len(self.analysis_columns)*(len(self.analysis_columns) - 1) / 2.0
+
         for i, x_label in enumerate(self.analysis_columns):
             for j, y_label in enumerate(self.analysis_columns):
                 # Only compute for the upper triangle of the matrix
                 if i < j:
+                    self.update_progress(complete / total)
                     # print("Analyszing:", x_label, "and", y_label)
                     if self.metric == 'mutual_information':
                         weight = self.pairwise_mutual_information(
@@ -299,7 +382,16 @@ class StructureLearning():
                     else:
                         weight = self.pairwise_mutual_information(
                             x_label + '_analysis', y_label + '_analysis')
-                    self._weight_matrix[i, j] = weight
+
+                    if self.ignore_perfect and (np.abs(weight) == self.PERF_CORR):
+                        self._weight_matrix[i, j] = self.DEFAULT_CORR
+                    else:
+                        self._weight_matrix[i, j] = weight
+
+                    if np.isnan(weight):
+                        raise ValueError('NaN weight computed in correlation matrix for labels: ', x_label, y_label)
+
+                    complete += 1
 
         # print(self._weight_matrix)
 
@@ -329,21 +421,22 @@ class StructureLearning():
         self.relevence_thresh = threshhold
 
         # Zero out elements that are less then threshhold times the maximum value
-        self._relevence_graph[np.abs(self._relevence_graph) < np.max(
-            self._relevence_graph) * threshhold] = 0.0
+        self._relevence_graph[np.abs(self._relevence_graph) < (np.max(self._relevence_graph) * threshhold)] = 0.0
 
-    def visualize_graph(self, edge_matrix, layout='circular'):
+    def visualize_graph(self, edge_matrix, layout='circular', fig_title='correlation_graph'):
         ''' Visualize an E x E matrix as a weighted adjacency matrix for a graph using networkx. '
         Keyword arguments:
         edge_matrix -- scipy csr_matrix to be interpeted as an E x E weighted adjacency matrix.
         layout -- the graph layout. One of ['circular', 'spring', 'shell', 'kamamda'] (default: 'circular')
         '''
+
         if self.metric == 'mutual_information':
-            cm = plt.cm.Blues
-        else:
+            self.cm = plt.cm.Blues
+        elif self.cm is None:
+            # self.cm = plt.cm.Blues
             # Choose a diverging colormap and flip weight orientation so negative is red
             midpoint = 1.0 - (np.max(self.weight_matrix) / (np.max(self.weight_matrix) + np.abs(np.min(self.weight_matrix))))
-            cm = self.shiftedColorMap(plt.cm.coolwarm_r, midpoint=midpoint)  
+            self.cm = self.shiftedColorMap(plt.cm.coolwarm_r, midpoint=midpoint)  
 
         # g = nx.from_numpy_matrix(edge_matrix, edge_attribute='weight')
         g = nx.from_numpy_matrix(edge_matrix)
@@ -368,30 +461,41 @@ class StructureLearning():
             print("Layout", layout, "not recognized. Defaulting to circular layout.")
             pos = nx.circular_layout(g)
 
-        nx.draw_networkx(G=g,
-                         pos=pos,
-                         ax=ax,
-                         with_labels=True,
-                         node_color='k',
-                         edgelist=edges,
-                         edge_color=(weights),
-                         width=10.0,
-                         edge_cmap=cm,
-                         vmin=np.min(self.weight_matrix),
-                         vmax=np.max(self.weight_matrix),
-                         node_size=1000,
-                         labels=dict(
-                             zip(range(len(self.analysis_columns)), self.analysis_columns)),
-                         font_size=20,
-                         font_color='r')
+        print(np.mean(edge_matrix))
+        print(np.std(edge_matrix))
+        print("vmax:", np.max(edge_matrix))
+        print("vmin:", np.min(edge_matrix))
+        print("vmax:", np.max(self.weight_matrix))
+        print("vmin:", np.min(self.weight_matrix))
+        print("cmap:", self.cm)
+        # Ingore depreciation warnings in the networkx source code
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            nx.draw_networkx(G=g,
+                             pos=pos,
+                             ax=ax,
+                             with_labels=True,
+                             node_color='k',
+                             edgelist=edges,
+                             edge_color=weights,
+                             width=10.0,
+                             edge_cmap=self.cm,
+                             vmin=np.min(self.weight_matrix),
+                             vmax=np.max(self.weight_matrix),
+                             node_size=1000,
+                             labels=dict(
+                                 zip(range(len(self.analysis_columns)), self.analysis_columns)),
+                             font_size=20,
+                             font_color='r')
 
+        plt.savefig(fig_title + '.svg')
         plt.show()
 
     def visualize_full_graph(self, layout='circular'):
         ''' Visualize the full weighted pairwise MI graph. '''
 
         # print(self.weight_matrix)
-        self.visualize_graph(self.weight_matrix, layout)
+        self.visualize_graph(self.weight_matrix, layout, fig_title='full_graph')
 
     def visualize_relevence_graph(self, layout='circular', threshhold=None):
         ''' Visualize the relevence MI graph. '''
@@ -404,13 +508,13 @@ class StructureLearning():
         else:
             self.relevence_thresh = threshhold
 
-        self.visualize_graph(self.relevence_graph, layout)
+        self.visualize_graph(self.relevence_graph, layout, fig_title='relevence_graph')
 
     def visualize_maximum_spanning_tree(self, layout='circular'):
         ''' Visualize the Chow Liu tree. '''
-        self.visualize_graph(self.maximum_spanning_graph, layout)
+        self.visualize_graph(self.maximum_spanning_graph, layout, fig_title='spanning_tree')
 
-    def visualize_scatter_plots(self, top_n=None, shape=None, use_analysis_vars=False):
+    def visualize_scatter_plots(self, top_n=None, shape=None, use_analysis_vars=False, fig_title='scatterplots'):
         ''' Visualize scatter plots of discretized data, either for all data pairs or for the top_n MI scores.
         Arguments:
         top_n -- plot only the top_n mutual informatino scores (default: None)
@@ -434,8 +538,12 @@ class StructureLearning():
                 for j, y_label in enumerate(column_list):
                     # Only visualize the upper left triangle of the plot matrix
                     if i <= j:
-                        ax[i, j].scatter(self.df[x_label],
-                                         self.df[y_label], s=10)
+                        try:
+                            ax[i, j].scatter(self.df[x_label],
+                                             self.df[y_label], s=10)
+                        except (ValueError) as e:
+                            ax[i, j].scatter(self.df[x_label].astype(str),
+                                             self.df[y_label].astype(str), s=10)
 
                         # Add variable labels to the sides of the grid
                         if i == 0:
@@ -460,7 +568,7 @@ class StructureLearning():
                 j = sort_index[ind] % len(self.analysis_columns)
 
                 # Ignore entries in the lower triangle or diagonal of the matrix
-                if i >= j:
+                if i >= j: 
                     ind += 1
                     continue
 
@@ -468,18 +576,29 @@ class StructureLearning():
                 y_label = column_list[j]
 
                 if shape is None or shape[0] == 1 or shape[1] == 1:
-                    ax[count].scatter(self.df[x_label], self.df[y_label], s=10)
+                    try:
+                        ax[count].scatter(self.df[x_label], self.df[y_label], s=10)
+                    except (ValueError) as e:
+                        ax[count].scatter(self.df[x_label].astype(str), 
+                                          self.df[y_label].astype(str), s=10)
+
                     ax[count].set_title(
                         self.analysis_columns[i] + ' vs ' + self.analysis_columns[j])
                 else:
-                    ax[math.floor(count / shape[1]), count % shape[1]
-                        ].scatter(self.df[x_label], self.df[y_label], s=10)
+                    try:
+                        ax[math.floor(count / shape[1]), count % shape[1]
+                            ].scatter(self.df[x_label], self.df[y_label], s=10)
+                    except (ValueError) as e: 
+                        ax[math.floor(count / shape[1]), count % shape[1]
+                            ].scatter(self.df[x_label].astype(str), self.df[y_label].astype(str), s=10)
+
                     ax[math.floor(count / shape[1]), count % shape[1]
                         ].set_title(self.analysis_columns[i] + ' vs ' + self.analysis_columns[j])
                 # Increment plot count and index
                 count += 1
                 ind += 1
 
+        plt.savefig(fig_title + '.svg')
         plt.show()
 
     def compare_variables(self, x_label, y_label, use_analysis_vars=False):
@@ -508,6 +627,24 @@ class StructureLearning():
         if self._relevence_graph is None:
             self.build_relevence_network(threshhold=self.relevence_thresh)
         return self._relevence_graph
+
+
+    def update_progress(self, progress):
+        bar_length = 20
+        if isinstance(progress, int):
+            progress = float(progress)
+        if not isinstance(progress, float):
+            progress = 0
+        if progress < 0:
+            progress = 0
+        if progress >= 1:
+            progress = 1
+
+        block = int(round(bar_length * progress))
+
+        clear_output(wait = True)
+        text = "Progress: [{0}] {1:.1f}%".format( "#" * block + "-" * (bar_length - block), progress * 100)
+        print(text)
 
     def shiftedColorMap(self, cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
         '''
@@ -561,3 +698,41 @@ class StructureLearning():
         plt.register_cmap(cmap=newcmap)
 
         return newcmap
+
+class StructureLearningFromS3(StructureLearning):
+    def __init__(self, bucket, key, analysis_columns=None, per_capita_columns=None, 
+        population_column=None, categorical_columns=None, 
+        correlation_measure='mutual_information', BINS=20, ignore_perfect=True):
+
+        url = 'https://s3.amazonaws.com/' + bucket + '/' + key
+        try:
+            response = requests.get(url)
+            json_response = response.json(cls=ndjson.Decoder)
+        except:
+            print("Failed to read from remote bucket:", sys.exc_info()[0])
+            raise
+
+        # Flatten json attribute and geometry data
+        feature_items = [None] * len(json_response)
+        geometry_items = [None] * len(json_response)
+        for i, item in enumerate(json_response):
+            feature_items[i] = item['properties']
+            geometry_items[i] = item['geometry']
+
+        fp_features = json.dumps(feature_items)
+        fp_geometry = json.dumps(geometry_items)
+
+        df_features = pd.read_json(fp_features, orient='records')
+        df_geometry = pd.read_json(fp_geometry, orient='records')
+
+        # Join geometry and attibute data into a single df
+        df = df_features.join(df_geometry, how='inner')
+
+        if df.shape[0] == 0:
+            raise ValueError('Dataframe has zero rows.')
+
+        super(StructureLearningFromS3, self).__init__(df, analysis_columns, 
+            per_capita_columns, population_column, categorical_columns, 
+            correlation_measure, BINS, inplace=False, ignore_perfect=ignore_perfect)
+
+
